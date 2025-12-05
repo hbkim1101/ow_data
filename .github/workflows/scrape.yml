@@ -1,37 +1,43 @@
-name: Daily Overwatch Scraper
+name: Update OW Data
 
 on:
   schedule:
-    - cron: "0 18 * * *"   # 매일 한국시간 새벽 3시쯤 (UTC+9 기준, 필요시 수정)
-  workflow_dispatch:        # 수동 실행도 가능하게
+    - cron: '0 18 * * *'   # 예시: 매일 03:00 KST 맞추려면 UTC로 조정
+  workflow_dispatch:
+
+# 요게 중요
+permissions:
+  contents: write
 
 jobs:
-  scrape:
+  scrape-and-commit:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Check out repository
+      - name: Checkout
         uses: actions/checkout@v4
+        with:
+          persist-credentials: true  # 기본값이지만, 혹시 모르니 명시
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: '3.12'
 
-      - name: Install dependencies
+      - name: Install deps
         run: |
-          python -m pip install --upgrade pip
-          pip install requests pandas beautifulsoup4
+          pip install -r requirements.txt
 
       - name: Run scraper
         run: |
-          python scripts/ow_scraper.py
+          python script/ow_scraper.py
 
-      - name: Commit and push CSV results
+      - name: Commit and push
         run: |
           git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
 
           git add .
-          git commit -m "Update OW stats (auto) [skip ci]" || echo "No changes to commit"
+          git commit -m "Update OW stats (auto) [skip ci]" || echo "Nothing to commit"
+
           git push
