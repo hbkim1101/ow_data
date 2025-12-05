@@ -95,7 +95,7 @@ def main():
                     })
 
                 # 너무 빠르게 때리지 않도록
-                time.sleep(1)
+                time.sleep(0.1)
 
             except Exception as e:
                 print(f"❌ 실패: region={region}, map={map_name}, tier={tier} | {e}")
