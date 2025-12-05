@@ -30,7 +30,7 @@ jobs:
 
       - name: Run scraper
         run: |
-          python script/ow_scraper.py
+          python scripts/ow_scraper.py
 
       - name: Commit and push
         run: |
