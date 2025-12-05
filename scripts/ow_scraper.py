@@ -1,4 +1,4 @@
-#%%
+# script/ow_scraper.py
 import requests
 import pandas as pd
 import time
@@ -9,88 +9,105 @@ from bs4 import BeautifulSoup
 from itertools import product
 from datetime import datetime
 
-# 시즌 폴더 (고정)
-base_dir = "Season19"
+def main():
+    # ===== 0. 날짜 기반 상위 폴더 설정 =====
+    # GitHub Actions에서 환경변수로 DATE가 넘어오면 그걸 쓰고,
+    # 없으면 오늘 날짜로 자동 설정
+    date_str = os.getenv("DATE")
+    if not date_str:
+        date_str = datetime.now().strftime("%Y-%m-%d")
 
-# 오늘 날짜 문자열
-today_str = datetime.now().strftime("%Y-%m-%d")
+    # 최상위 시즌 폴더 (필요 시 Season19 → Season20 등으로 변경)
+    season_dir = "Season19"
 
-# 오늘 날짜 기준 저장 폴더: Season19/2025-12-05
-save_dir = os.path.join(base_dir, today_str)
-os.makedirs(save_dir, exist_ok=True)
+    # Season19/2025-12-05 이런 식으로 날짜별 폴더 생성
+    save_root = os.path.join(season_dir, date_str)
+    os.makedirs(save_root, exist_ok=True)
 
-# 수집 대상
-gamemodes = [0, 1]  # 0: 빠른 대전, 1: 경쟁전
-regions = ["Americas", "Europe", "Asia"]
-maps = [
-    "all-maps", 
-    "throne-of-anubis", "hanaoka",
-    "antarctic-peninsula", "nepal", "lijiang-tower", "busan", "samoa", "oasis", "ilios",
-    "route-66", "watchpoint-gibraltar", "dorado", "rialto", "shambali-monastery", "circuit-royal", "junkertown", "havana",
-    "new-junk-city", "suravasa", "aatlis",
-    "numbani", "midtown", "blizzard-world", "eichenwalde", "kings-row", "paraiso", "hollywood",
-    "new-queen-street", "runasapi", "esperanca", "colosseo"
-]
-tiers = ["All", "Bronze", "Silver", "Gold", "Platinum", "Diamond", "Master", "Grandmaster"]
+    print(f"=== Saving data under: {save_root} ===")
 
-for region in regions:
-    print(f"\n===== 🌎 {region} 수집 시작 =====")
-    records = []  # 지역별로 초기화
+    # ===== 1. 수집 대상 설정 =====
+    gamemodes = [0, 1]  # 0: 빠른 대전, 1: 경쟁전
+    regions = ["Americas", "Europe", "Asia"]
+    maps = [
+        "all-maps", 
+        "throne-of-anubis", "hanaoka",
+        "antarctic-peninsula", "nepal", "lijiang-tower", "busan", "samoa", "oasis", "ilios",
+        "route-66", "watchpoint-gibraltar", "dorado", "rialto", "shambali-monastery", "circuit-royal", "junkertown", "havana",
+        "new-junk-city", "suravasa", "aatlis",
+        "numbani", "midtown", "blizzard-world", "eichenwalde", "kings-row", "paraiso", "hollywood",
+        "new-queen-street", "runasapi", "esperanca", "colosseo"
+    ]
+    tiers = ["All", "Bronze", "Silver", "Gold", "Platinum", "Diamond", "Master", "Grandmaster"]
 
-    for gamemode, map_name, tier in product(gamemodes, maps, tiers):
+    # ===== 2. 지역별 수집 루프 =====
+    for region in regions:
+        print(f"\n===== 🌎 {region} 수집 시작 =====")
+        records = []  # 지역별로 초기화
 
-        if gamemode == 0 and tier != "All":
-            continue
-        elif gamemode == 1 and map_name in ["throne-of-anubis", "hanaoka"]:
-            continue
+        for gamemode, map_name, tier in product(gamemodes, maps, tiers):
 
-        url = (
-            "https://overwatch.blizzard.com/ko-kr/rates/"
-            f"?input=pc&map={map_name}&region={region}"
-            f"&role=All&rq={gamemode}&tier={tier}"
-        )
-        print(f"🌍 수집 중: region={region}, map={map_name}, tier={tier} - {url}")
-
-        try:
-            res = requests.get(url)
-            res.raise_for_status()
-            soup = BeautifulSoup(res.text, "html.parser")
-
-            tag = soup.find("blz-data-table")
-            if not tag:
-                print(f"⚠️ 데이터 없음: region={region}, map={map_name}, tier={tier}")
+            # 빠른 대전은 tier=All만 존재
+            if gamemode == 0 and tier != "All":
+                continue
+            # 경쟁전인데 폐지된 맵은 스킵
+            elif gamemode == 1 and map_name in ["throne-of-anubis", "hanaoka"]:
                 continue
 
-            raw_json = html.unescape(tag["allrows"])
-            data = json.loads(raw_json)
+            url = (
+                "https://overwatch.blizzard.com/ko-kr/rates/"
+                f"?input=pc&map={map_name}&region={region}"
+                f"&role=All&rq={gamemode}&tier={tier}"
+            )
+            print(f"🌍 수집 중: region={region}, map={map_name}, tier={tier} - {url}")
 
-            for hero in data:
-                cells = hero.get("cells", {})
-                hero_meta = hero.get("hero", {})
-                records.append({
-                    "game_mode": "competitive" if gamemode == 1 else "quickplay",
-                    "region": region,
-                    "map": map_name,
-                    "tier": tier,
-                    "hero_name": cells.get("name", ""),
-                    "role": hero_meta.get("role", ""),
-                    "pick_rate(%)": cells.get("pickrate", ""),
-                    "win_rate(%)": cells.get("winrate", "")
-                })
+            try:
+                res = requests.get(url, timeout=15)
+                res.raise_for_status()
+                soup = BeautifulSoup(res.text, "html.parser")
 
-            time.sleep(1)
+                tag = soup.find("blz-data-table")
+                if not tag:
+                    print(f"⚠️ 데이터 없음: region={region}, map={map_name}, tier={tier}")
+                    continue
 
-        except Exception as e:
-            print(f"❌ 실패: region={region}, map={map_name}, tier={tier} | {e}")
-            continue
+                raw_json = html.unescape(tag["allrows"])
+                data = json.loads(raw_json)
 
-    # 지역별 DataFrame & CSV 저장
-    df_region = pd.DataFrame(records)
+                for hero in data:
+                    cells = hero.get("cells", {})
+                    hero_meta = hero.get("hero", {})
+                    records.append({
+                        "date": date_str,
+                        "game_mode": "competitive" if gamemode == 1 else "quickplay",
+                        "region": region,
+                        "map": map_name,
+                        "tier": tier,
+                        "hero_name": cells.get("name", ""),
+                        "role": hero_meta.get("role", ""),
+                        "pick_rate(%)": cells.get("pickrate", ""),
+                        "win_rate(%)": cells.get("winrate", "")
+                    })
 
-    filename = f"overwatch_all_stats_{region.lower()}.csv"
-    filepath = os.path.join(save_dir, filename)
+                # 너무 빠르게 때리지 않도록
+                time.sleep(1)
 
-    df_region.to_csv(filepath, index=False, encoding="utf-8-sig")
-    print(f"✅ {region} 데이터 CSV 저장 완료: {filepath}")
+            except Exception as e:
+                print(f"❌ 실패: region={region}, map={map_name}, tier={tier} | {e}")
+                continue
 
-print("🎉 모든 지역 데이터 수집 및 저장 완료!")
+        # ===== 3. 지역별 DataFrame & CSV 저장 =====
+        if records:
+            df_region = pd.DataFrame(records)
+            filename = f"overwatch_all_stats_{region.lower()}.csv"
+            filepath = os.path.join(save_root, filename)
+
+            df_region.to_csv(filepath, index=False, encoding="utf-8-sig")
+            print(f"✅ {region} 데이터 CSV 저장 완료: {filepath}")
+        else:
+            print(f"⚠️ {region} 지역에 수집된 데이터가 없습니다.")
+
+    print("🎉 모든 지역 데이터 수집 및 저장 완료!")
+
+if __name__ == "__main__":
+    main()
