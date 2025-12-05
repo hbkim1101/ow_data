@@ -13,9 +13,7 @@ def main():
     # ===== 0. 날짜 기반 상위 폴더 설정 =====
     # GitHub Actions에서 환경변수로 DATE가 넘어오면 그걸 쓰고,
     # 없으면 오늘 날짜로 자동 설정
-    date_str = os.getenv("DATE")
-    if not date_str:
-        date_str = datetime.now().strftime("%Y-%m-%d")
+    date_str = datetime.now().strftime("%Y-%m-%d")
 
     # 최상위 시즌 폴더 (필요 시 Season19 → Season20 등으로 변경)
     season_dir = "Season19"
