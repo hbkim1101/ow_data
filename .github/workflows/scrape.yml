@@ -40,5 +40,6 @@ jobs:
             exit 0
           fi
 
-          git commit -m "Update OW stats (auto) [skip ci]"
+          git commit -m "Update OW stats (${DATE})"
+    
           git push
