@@ -35,7 +35,7 @@ def main():
   gamemodes = [0, 1] # 0: 빠른 대전, 1: 경쟁전
   regions = ["Americas", "Europe", "Asia"]
   maps = [
-    "all-maps", 
+    "all-maps",
     "throne-of-anubis", "hanaoka",
     "antarctic-peninsula", "nepal", "lijiang-tower", "busan", "samoa", "oasis", "ilios",
     "route-66", "watchpoint-gibraltar", "dorado", "rialto", "shambali-monastery", "circuit-royal", "junkertown", "havana",
