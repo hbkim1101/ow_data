@@ -84,7 +84,7 @@ def main():
           hero_meta = hero.get("hero", {})
           records.append({
             "date": date_str,
-            "game_mode": "competitive" if gamemode == 1 else "quickplay",
+            "game_mode": "competitive" if gamemode == 2 else "quickplay",
             "region": region,
             "map": map_name,
             "tier": tier,
