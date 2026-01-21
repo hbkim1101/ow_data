@@ -32,7 +32,7 @@ def main():
   print(f"=== File name pattern: {season_code}_<Region>_{date_short}.csv ===")
 
   # ===== 1. 수집 대상 설정 =====
-  gamemodes = [0, 1] # 0: 빠른 대전, 1: 경쟁전
+  gamemodes = [0, 2] # 0: 빠른 대전, 2: 경쟁전
   regions = ["Americas", "Europe", "Asia"]
   maps = [
     "all-maps",
@@ -56,7 +56,7 @@ def main():
       if gamemode == 0 and tier != "All":
         continue
       # 경쟁전인데 폐지된 맵은 스킵
-      elif gamemode == 1 and map_name in ["throne-of-anubis", "hanaoka"]:
+      elif gamemode == 2 and map_name in ["throne-of-anubis", "hanaoka"]:
         continue
 
       url = (
