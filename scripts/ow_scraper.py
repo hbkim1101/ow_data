@@ -107,7 +107,7 @@ def main():
     # ===== 1. 수집 대상 설정 (순서 정의) =====
     # 이 리스트 순서대로 최종 파일이 정렬됩니다.
     gamemodes = [0, 2] # 0:quickplay, 2:competitive
-    regions = ["Asia"]
+    regions = ["Americas", "Europe", "Asia"]
     
     maps = [
         "all-maps", "throne-of-anubis", "hanaoka", "antarctic-peninsula", "nepal", "lijiang-tower", 
