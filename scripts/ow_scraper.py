@@ -73,10 +73,10 @@ def scrape_single_url(args):
                     "region": region,
                     "map": map_name,
                     "tier": tier,
-                    "hero_name": cells.get("name", ""),
+                    "hero": cells.get("name", ""),
                     "role": hero_meta.get("role", ""),
-                    "pick_rate(%)": cells.get("pickrate", ""),
-                    "win_rate(%)": cells.get("winrate", "")
+                    "pick_rate": cells.get("pickrate", ""),
+                    "win_rate": cells.get("winrate", "")
                 })
             
             time.sleep(0.1) 
