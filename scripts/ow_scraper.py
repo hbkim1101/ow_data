@@ -13,17 +13,17 @@ def main():
     # 오늘 날짜로 자동 설정 (YYYY-MM-DD)
     date_str = datetime.now().strftime("%Y-%m-%d")
 
-    # 최상위 시즌 폴더
+    # 최상위 시즌 폴더 (사용자가 작성한 Season20 유지)
     season_dir = "Season20"
 
-    # Season19 → S19 같은 코드로 변환
-    season_num = "".join(ch for ch in season_dir if ch.isdigit()) # "19"
-    season_code = f"S{season_num}" # "S19"
+    # Season20 → S20 변환
+    season_num = "".join(ch for ch in season_dir if ch.isdigit()) 
+    season_code = f"S{season_num}"
 
     # 2025-12-05 → 251205 형식으로 변환
     date_short = datetime.strptime(date_str, "%Y-%m-%d").strftime("%y%m%d")
 
-    # Season19/2025-12-05 이런 식으로 날짜별 폴더 생성
+    # 폴더 생성
     save_root = os.path.join(season_dir, date_str)
     os.makedirs(save_root, exist_ok=True)
 
@@ -31,8 +31,8 @@ def main():
     print(f"=== File name pattern: {season_code}_<Region>_{date_short}.csv ===")
 
     # ===== 1. 수집 대상 설정 =====
-    gamemodes = [0, 2] # 0: 빠른 대전, 2: 경쟁전
-    regions = ["Americas", "Europe", "Asia"]
+    gamemodes = [0, 1] # 0: 빠른 대전, 2: 경쟁전
+    regions = ["Asia"]
     maps = [
         "all-maps",
         "throne-of-anubis", "hanaoka",
@@ -58,7 +58,7 @@ def main():
             if gamemode == 0 and tier != "All":
                 continue
             # 경쟁전인데 폐지된 맵은 스킵
-            elif gamemode == 2 and map_name in ["throne-of-anubis", "hanaoka"]:
+            elif gamemode == 1 and map_name in ["throne-of-anubis", "hanaoka"]:
                 continue
 
             url = (
@@ -68,46 +68,58 @@ def main():
             )
             print(f"🌍 수집 중: region={region}, map={map_name}, tier={tier} - {url}")
 
-            try:
-                res = requests.get(url, timeout=15)
+            # [RETRY LOGIC START] 최대 3번 시도
+            max_retries = 3
+            for attempt in range(max_retries):
+                try:
+                    # timeout을 15초 -> 30초로 늘림
+                    res = requests.get(url, timeout=30)
 
-                # [NEW] 리다이렉트 감지 로직
-                if res.history:
-                    print(f"⏩ [SKIP] 리다이렉트됨 (데이터 없음 추정): {res.url}")
-                    continue
+                    # [Redirect Check]
+                    if res.history:
+                        print(f"⏩ [SKIP] 리다이렉트됨 (데이터 없음 추정): {res.url}")
+                        # 리다이렉트는 재시도해도 똑같으므로 바로 루프 탈출
+                        break 
 
-                res.raise_for_status()
-                soup = BeautifulSoup(res.text, "html.parser")
+                    res.raise_for_status()
+                    soup = BeautifulSoup(res.text, "html.parser")
 
-                tag = soup.find("blz-data-table")
-                if not tag:
-                    print(f"⚠️ 데이터 없음: region={region}, map={map_name}, tier={tier}")
-                    continue
+                    tag = soup.find("blz-data-table")
+                    if not tag:
+                        print(f"⚠️ 데이터 없음: region={region}, map={map_name}, tier={tier}")
+                        # 데이터가 없는 것도 재시도 의미가 없으므로 탈출
+                        break 
 
-                raw_json = html.unescape(tag["allrows"])
-                data = json.loads(raw_json)
+                    raw_json = html.unescape(tag["allrows"])
+                    data = json.loads(raw_json)
 
-                for hero in data:
-                    cells = hero.get("cells", {})
-                    hero_meta = hero.get("hero", {})
-                    records.append({
-                        "date": date_str,
-                        "game_mode": "competitive" if gamemode == 2 else "quickplay",
-                        "region": region,
-                        "map": map_name,
-                        "tier": tier,
-                        "hero_name": cells.get("name", ""),
-                        "role": hero_meta.get("role", ""),
-                        "pick_rate(%)": cells.get("pickrate", ""),
-                        "win_rate(%)": cells.get("winrate", "")
-                    })
+                    for hero in data:
+                        cells = hero.get("cells", {})
+                        hero_meta = hero.get("hero", {})
+                        records.append({
+                            "date": date_str,
+                            "game_mode": "competitive" if gamemode == 2 else "quickplay",
+                            "region": region,
+                            "map": map_name,
+                            "tier": tier,
+                            "hero_name": cells.get("name", ""),
+                            "role": hero_meta.get("role", ""),
+                            "pick_rate(%)": cells.get("pickrate", ""),
+                            "win_rate(%)": cells.get("winrate", "")
+                        })
 
-                # 너무 빠르게 때리지 않도록
-                time.sleep(0.1)
+                    # 성공했으면, 약간 쉬고 retry 루프 종료 (다음 url로 이동)
+                    time.sleep(0.1) 
+                    break 
 
-            except Exception as e:
-                print(f"❌ 실패: region={region}, map={map_name}, tier={tier} | {e}")
-                continue
+                except Exception as e:
+                    # 에러 발생 시 처리
+                    if attempt < max_retries - 1:
+                        print(f"⚠️ 에러 발생 (재시도 {attempt+1}/{max_retries}): {e}")
+                        time.sleep(2) # 2초 대기 후 재시도
+                    else:
+                        # 마지막 시도까지 실패하면 포기
+                        print(f"❌ 최종 실패: region={region}, map={map_name}, tier={tier} | {e}")
 
         # ===== 3. 지역별 DataFrame & CSV 저장 =====
         if records:
@@ -128,7 +140,6 @@ def main():
     print(f"📊 총 수집된 데이터 행 수: {total_rows}")
 
     # [NEW] GitHub Actions 환경 변수(GITHUB_ENV)로 내보내기
-    # 로컬 테스트 시 오류 방지를 위해 환경변수 존재 여부 확인
     if "GITHUB_ENV" in os.environ:
         with open(os.environ["GITHUB_ENV"], "a") as f:
             f.write(f"TOTAL_ROWS={total_rows}\n")
