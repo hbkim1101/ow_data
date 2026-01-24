@@ -2,7 +2,7 @@ name: Update Overwatch Stats
 
 on:
   schedule:
-    - cron: '0 20 * * *'  # 매일 05:00 KST쯤 (UTC 기준) 예시
+    - cron: '0 20 * * *'  # 매일 05:00 KST
   workflow_dispatch:
 
 jobs:
@@ -16,7 +16,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.12'  # 원하는 버전
+          python-version: '3.12'
 
       - name: Install dependencies
         run: |
@@ -34,12 +34,17 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
+          # 1. 날짜 변수 생성
+          DATE=$(date +'%Y-%m-%d')
+
           git add .
           if git diff --cached --quiet; then
             echo "No changes to commit"
             exit 0
           fi
 
-          git commit -m "Update OW stats (${DATE})"
-    
+          # 2. 커밋 메시지에 날짜와 총 행 수($TOTAL_ROWS) 포함
+          # TOTAL_ROWS는 파이썬 스크립트가 GITHUB_ENV를 통해 전달함
+          git commit -m "Update OW stats ($DATE) / Total: $TOTAL_ROWS rows"
+          
           git push
