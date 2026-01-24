@@ -15,7 +15,7 @@ def main():
   date_str = datetime.now().strftime("%Y-%m-%d")
 
   # 최상위 시즌 폴더
-  season_dir = "Season19"
+  season_dir = "Season20"
 
   # Season19 → S19 같은 코드로 변환
   season_num = "".join(ch for ch in season_dir if ch.isdigit()) # "19"
@@ -68,6 +68,13 @@ def main():
 
       try:
         res = requests.get(url, timeout=15)
+
+        # [NEW] 리다이렉트 감지 로직 추가
+        # res.history가 비어있지 않으면 서버가 다른 주소로 보냈다는 의미입니다.
+        if res.history:
+            print(f"⏩ [SKIP] 리다이렉트됨 (데이터 없음 추정): {res.url}")
+            continue
+        
         res.raise_for_status()
         soup = BeautifulSoup(res.text, "html.parser")
 
