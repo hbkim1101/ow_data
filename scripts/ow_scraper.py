@@ -36,7 +36,7 @@ def scrape_single_url(args):
 
             # 리다이렉트 감지 (데이터 없음)
             if res.history:
-                # print(f"⏩ [SKIP] {map_name}/{tier} (Redirected)")
+                print(f"⏩ [SKIP] {map_name}/{tier} (Redirected)")
                 return [] # 빈 리스트 반환
 
             res.raise_for_status()
@@ -44,7 +44,7 @@ def scrape_single_url(args):
 
             tag = soup.find("blz-data-table")
             if not tag:
-                # print(f"⚠️ [NO DATA] {map_name}/{tier}")
+                print(f"⚠️ [NO DATA] {map_name}/{tier}")
                 return []
 
             raw_json = html.unescape(tag["allrows"])
@@ -55,7 +55,7 @@ def scrape_single_url(args):
                 hero_meta = hero.get("hero", {})
                 records.append({
                     "date": date_str,
-                    "game_mode": "competitive" if gamemode == 2 else "quickplay",
+                    "game_mode": "competitive" if gamemode == 1 else "quickplay",
                     "region": region,
                     "map": map_name,
                     "tier": tier,
