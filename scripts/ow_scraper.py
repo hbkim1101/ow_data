@@ -69,7 +69,7 @@ def scrape_single_url(args):
                 hero_meta = hero.get("hero", {})
                 records.append({
                     "date": date_str,
-                    "game_mode": "competitive" if gamemode == 1 else "quickplay",
+                    "game_mode": "competitive" if gamemode == 2 else "quickplay",
                     "region": region,
                     "map": map_name,
                     "tier": tier,
@@ -106,7 +106,7 @@ def main():
 
     # ===== 1. 수집 대상 설정 (순서 정의) =====
     # 이 리스트 순서대로 최종 파일이 정렬됩니다.
-    gamemodes = [0, 1] # 0:quickplay, 2:competitive
+    gamemodes = [0, 2] # 0:quickplay, 2:competitive
     regions = ["Asia"]
     
     maps = [
@@ -122,7 +122,7 @@ def main():
     total_rows = 0
 
     # 정렬을 위한 텍스트 변환 맵핑
-    mode_map_str = {0: "quickplay", 1: "competitive"}
+    mode_map_str = {0: "quickplay", 2: "competitive"}
     ordered_modes = [mode_map_str[g] for g in gamemodes] # ["quickplay", "competitive"]
 
     # ===== 2. 지역별 수집 =====
