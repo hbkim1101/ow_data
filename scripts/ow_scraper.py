@@ -14,7 +14,7 @@ def main():
     date_str = datetime.now().strftime("%Y-%m-%d")
 
     # 최상위 시즌 폴더
-    season_dir = "Season19"
+    season_dir = "Season20"
 
     # Season19 → S19 같은 코드로 변환
     season_num = "".join(ch for ch in season_dir if ch.isdigit()) # "19"
