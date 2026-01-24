@@ -7,45 +7,62 @@ import os
 from bs4 import BeautifulSoup
 from itertools import product
 from datetime import datetime
+from urllib.parse import unquote
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 # ===== 설정값 =====
-MAX_WORKERS = 5  # 동시 요청 수
+MAX_WORKERS = 5  # 동시 요청 수 (5~8 권장)
 TIMEOUT_SEC = 30 # 타임아웃
 
 def scrape_single_url(args):
     """
-    하나의 URL을 처리하는 작업 단위 함수
+    [작업 단위] URL 요청 및 정밀 검증(Validation) 수행
     """
     region, gamemode, map_name, tier, date_str = args
     
     records = []
     
-    url = (
-        "https://overwatch.blizzard.com/ko-kr/rates/"
-        f"?input=pc&map={map_name}&region={region}"
-        f"&role=All&rq={gamemode}&tier={tier}"
-    )
+    # 1. 요청 URL 조립
+    base_url = "https://overwatch.blizzard.com/ko-kr/rates/"
+    # rq: 0(빠른대전), 2(경쟁전)
+    params = f"?input=pc&map={map_name}&region={region}&role=All&rq={gamemode}&tier={tier}"
+    target_url = base_url + params
 
     max_retries = 3
     for attempt in range(max_retries):
         try:
-            # [핵심 수정] allow_redirects=False 설정
-            # 리다이렉트 응답(301, 302)이 오면 따라가지 않고 멈춥니다.
-            res = requests.get(url, timeout=TIMEOUT_SEC, allow_redirects=False)
+            # 2. 요청 전송 (allow_redirects=True로 설정하여 최종 도착지 확인)
+            res = requests.get(target_url, timeout=TIMEOUT_SEC, allow_redirects=True)
+            res.raise_for_status()
 
-            # [1] HTTP 상태 코드로 리다이렉트 감지
-            if res.status_code in [301, 302, 303, 307, 308]:
-                # print(f"⏩ [SKIP] {map_name}/{tier} (Redirect detected: {res.status_code})")
-                return [] # 빈 리스트 반환 (수집 안 함)
-
-            res.raise_for_status() # 200 OK가 아니면 에러 발생
+            # ===== 🛡️ [핵심] URL 대조 검증 (Validation) =====
+            # 브라우저/서버 간 인코딩 차이 해결을 위해 디코딩
+            final_url_decoded = unquote(res.url)
             
-            soup = BeautifulSoup(res.text, "html.parser")
+            # (1) 게임 모드(rq) 검증
+            # 내가 요청한 모드(rq=2)가 사라지고 rq=0 등으로 바뀌었는지 확인
+            if f"rq={gamemode}" not in final_url_decoded:
+                # print(f"⏩ [SKIP] GameMode Mismatch: {map_name}/{tier}")
+                return []
 
+            # (2) 맵 이름 검증
+            if map_name not in final_url_decoded:
+                # print(f"⏩ [SKIP] Map Mismatch: {map_name} -> Removed in URL")
+                return []
+
+            # (3) 티어 검증
+            if tier not in final_url_decoded:
+                 # print(f"⏩ [SKIP] Tier Mismatch: {tier} -> Removed in URL")
+                 return []
+            
+            # ===================================================
+
+            # 3. 데이터 파싱
+            soup = BeautifulSoup(res.text, "html.parser")
             tag = soup.find("blz-data-table")
+            
+            # 데이터 테이블이 아예 없는 경우
             if not tag:
-                # print(f"⚠️ [NO DATA] {map_name}/{tier}")
                 return []
 
             raw_json = html.unescape(tag["allrows"])
@@ -66,13 +83,15 @@ def scrape_single_url(args):
                     "win_rate(%)": cells.get("winrate", "")
                 })
             
+            # 성공 시 약간의 딜레이 (서버 부하 방지)
             time.sleep(0.1) 
             return records
 
         except Exception as e:
             if attempt < max_retries - 1:
-                time.sleep(1)
+                time.sleep(1) # 재시도 전 대기
             else:
+                # 실패 로그 (필요 시 주석 해제)
                 # print(f"❌ [FAIL] {map_name}/{tier}: {e}")
                 return [] 
 
@@ -110,8 +129,10 @@ def main():
     for region in regions:
         print(f"\n===== 🌎 {region} 수집 시작 (Parallel) =====")
         
+        # 작업 목록(Task List) 생성
         tasks = []
         for gamemode, map_name, tier in product(gamemodes, maps, tiers):
+            # 1차 필터링 (불필요한 조합 제외)
             if gamemode == 0 and tier != "All": continue
             elif gamemode == 1 and map_name in ["throne-of-anubis", "hanaoka"]: continue
             
@@ -119,6 +140,7 @@ def main():
 
         region_records = []
         
+        # ThreadPoolExecutor로 병렬 실행
         with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
             future_to_url = {executor.submit(scrape_single_url, t): t for t in tasks}
             
@@ -128,8 +150,9 @@ def main():
                     if data:
                         region_records.extend(data)
                 except Exception as exc:
-                    print(f"Error: {exc}")
+                    print(f"Error in worker: {exc}")
                 
+                # 진행 상황 로깅 (50개 단위)
                 if (i + 1) % 50 == 0:
                     print(f"   ... {i + 1}/{len(tasks)} 완료")
 
@@ -147,6 +170,7 @@ def main():
 
     print(f"\n🎉 전체 완료! 총 데이터 행 수: {total_rows}")
 
+    # GitHub Actions 환경 변수 내보내기
     if "GITHUB_ENV" in os.environ:
         with open(os.environ["GITHUB_ENV"], "a") as f:
             f.write(f"TOTAL_ROWS={total_rows}\n")
