@@ -10,7 +10,7 @@ from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 # ===== 설정값 =====
-MAX_WORKERS = 5  # 5~8 권장
+MAX_WORKERS = 5  # 동시 요청 수
 TIMEOUT_SEC = 30 
 
 def scrape_single_url(args):
@@ -25,36 +25,30 @@ def scrape_single_url(args):
     max_retries = 3
     for attempt in range(max_retries):
         try:
-            # allow_redirects=True로 둡니다 (URL 확인보다는 내용 확인이 중요하므로)
             res = requests.get(target_url, timeout=TIMEOUT_SEC)
             res.raise_for_status()
 
-            # HTML 파싱
             soup = BeautifulSoup(res.text, "html.parser")
 
             # ================================================================
-            # 🛡️ [진짜 핵심] HTML 내부의 <option> 태그 검증
-            # 서버가 200 OK를 주더라도, 실제로 선택된 옵션이 다른지 확인합니다.
+            # 🛡️ HTML 태그(Select Option) 3중 검증
             # ================================================================
-            
-            # (1) 맵 검증
+
+            # [1] 게임 모드 검증
+            selected_gamemode = soup.find("option", {"value": str(gamemode), "selected": True})
+            if not selected_gamemode:
+                return []
+
+            # [2] 맵 검증
             if map_name != "all-maps":
-                # 내가 요청한 맵 이름(value)을 가진 option 태그를 찾고, 
-                # 그 태그에 'selected' 속성이 있는지 확인
-                # 예: <option value="hanaoka" selected> 가 있어야 통과
-                selected_map_option = soup.find("option", {"value": map_name, "selected": True})
-                
-                if not selected_map_option:
-                    # print(f"⏩ [SKIP] Map Mismatch: 요청({map_name}) != 결과(HTML내 선택안됨)")
+                selected_map = soup.find("option", {"value": map_name, "selected": True})
+                if not selected_map:
                     return []
 
-            # (2) 티어 검증
+            # [3] 티어 검증
             if tier != "All":
-                # 티어 역시 HTML 내에서 선택되어 있는지 확인
-                selected_tier_option = soup.find("option", {"value": tier, "selected": True})
-                
-                if not selected_tier_option:
-                    # print(f"⏩ [SKIP] Tier Mismatch: 요청({tier}) != 결과(HTML내 선택안됨)")
+                selected_tier = soup.find("option", {"value": tier, "selected": True})
+                if not selected_tier:
                     return []
             
             # ================================================================
@@ -67,7 +61,7 @@ def scrape_single_url(args):
             raw_json = html.unescape(tag["allrows"])
             data = json.loads(raw_json)
 
-            if not data: # 데이터가 비어있으면 종료
+            if not data: 
                 return []
 
             for hero in data:
@@ -92,7 +86,6 @@ def scrape_single_url(args):
             if attempt < max_retries - 1:
                 time.sleep(1)
             else:
-                # print(f"❌ [FAIL] {map_name}/{tier}: {e}")
                 return [] 
 
     return []
@@ -111,9 +104,11 @@ def main():
     print(f"=== Saving data under: {save_root} ===")
     print(f"=== Workers: {MAX_WORKERS} threads ===")
 
-    # ===== 1. 수집 대상 설정 =====
-    gamemodes = [0, 1]
+    # ===== 1. 수집 대상 설정 (순서 정의) =====
+    # 이 리스트 순서대로 최종 파일이 정렬됩니다.
+    gamemodes = [0, 1] # 0:quickplay, 2:competitive
     regions = ["Asia"]
+    
     maps = [
         "all-maps", "throne-of-anubis", "hanaoka", "antarctic-peninsula", "nepal", "lijiang-tower", 
         "busan", "samoa", "oasis", "ilios", "route-66", "watchpoint-gibraltar", "dorado", 
@@ -121,9 +116,14 @@ def main():
         "suravasa", "aatlis", "numbani", "midtown", "blizzard-world", "eichenwalde", 
         "kings-row", "paraiso", "hollywood", "new-queen-street", "runasapi", "esperanca", "colosseo"
     ]
+    
     tiers = ["All", "Bronze", "Silver", "Gold", "Platinum", "Diamond", "Master", "Grandmaster"]
 
     total_rows = 0
+
+    # 정렬을 위한 텍스트 변환 맵핑
+    mode_map_str = {0: "quickplay", 1: "competitive"}
+    ordered_modes = [mode_map_str[g] for g in gamemodes] # ["quickplay", "competitive"]
 
     # ===== 2. 지역별 수집 =====
     for region in regions:
@@ -132,7 +132,7 @@ def main():
         tasks = []
         for gamemode, map_name, tier in product(gamemodes, maps, tiers):
             if gamemode == 0 and tier != "All": continue
-            elif gamemode == 1 and map_name in ["throne-of-anubis", "hanaoka"]: continue
+            elif gamemode == 2 and map_name in ["throne-of-anubis", "hanaoka"]: continue
             
             tasks.append((region, gamemode, map_name, tier, date_str))
 
@@ -152,15 +152,37 @@ def main():
                 if (i + 1) % 50 == 0:
                     print(f"   ... {i + 1}/{len(tasks)} 완료")
 
-        # ===== 3. 저장 =====
+        # ===== 3. 저장 및 정렬 (Sorting) =====
         if region_records:
             df_region = pd.DataFrame(region_records)
+            
+            # ---------------------------------------------------------
+            # 🧹 [정렬 로직 추가] 입력한 리스트 순서대로 강제 정렬
+            # ---------------------------------------------------------
+            
+            # (1) 데이터 타입을 'Categorical'로 변환 (순서 지정)
+            df_region['game_mode'] = pd.Categorical(
+                df_region['game_mode'], categories=ordered_modes, ordered=True
+            )
+            df_region['map'] = pd.Categorical(
+                df_region['map'], categories=maps, ordered=True
+            )
+            df_region['tier'] = pd.Categorical(
+                df_region['tier'], categories=tiers, ordered=True
+            )
+
+            # (2) 지정된 순서대로 정렬 실행
+            # 게임모드 -> 맵 -> 티어 순으로 정렬
+            df_region = df_region.sort_values(by=['game_mode', 'map', 'tier'])
+            
+            # ---------------------------------------------------------
+
             total_rows += len(df_region)
 
             filename = f"{season_code}_{region}_{date_short}.csv"
             filepath = os.path.join(save_root, filename)
             df_region.to_csv(filepath, index=False, encoding="utf-8-sig")
-            print(f"💾 {region} 저장 완료: {len(df_region)} rows")
+            print(f"💾 {region} 저장 완료 (정렬됨): {len(df_region)} rows")
         else:
             print(f"⚠️ {region} 데이터 없음")
 
