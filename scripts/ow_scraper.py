@@ -128,7 +128,8 @@ def main():
     regions = ["Americas", "Europe", "Asia"]
     
     maps = [
-        "all-maps", "throne-of-anubis", "hanaoka", "antarctic-peninsula", "nepal", "lijiang-tower", 
+        "all-maps", "volskaya-industries", "temple-of-anubis", "hanamura", 
+        "throne-of-anubis", "hanaoka", "antarctic-peninsula", "nepal", "lijiang-tower", 
         "busan", "samoa", "oasis", "ilios", "route-66", "watchpoint-gibraltar", "dorado", 
         "rialto", "shambali-monastery", "circuit-royal", "junkertown", "havana", "new-junk-city", 
         "suravasa", "aatlis", "numbani", "midtown", "blizzard-world", "eichenwalde", 
