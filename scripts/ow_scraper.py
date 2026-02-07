@@ -157,7 +157,7 @@ def main():
             
             # 경쟁전(1,2)에서 특정 맵 스킵 (사용자 원본 로직 유지)
             # 여기서는 2로 진입하므로 2일 때 검사
-            if gamemode == 2 and map_name in ["throne-of-anubis", "hanaoka"]: continue
+            if gamemode == 2 and map_name in ["volskaya-industries", "temple-of-anubis", "hanamura", "throne-of-anubis", "hanaoka", "antarctic-peninsula"]: continue
             
             tasks.append((region, gamemode, map_name, tier, date_str))
 
