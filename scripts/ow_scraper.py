@@ -13,6 +13,103 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 MAX_WORKERS = 5  # 동시 요청 수
 TIMEOUT_SEC = 30 
 
+# ===== 맵 목록 파싱 =====
+def fetch_maps_from_web():
+    """
+    오버워치 사이트에서 맵 목록을 파싱하여 반환
+    """
+    try:
+        print("🗺️  웹사이트에서 맵 목록 파싱 중...")
+        url = "https://overwatch.blizzard.com/ko-kr/rates/"
+        res = requests.get(url, timeout=TIMEOUT_SEC)
+        res.raise_for_status()
+        
+        soup = BeautifulSoup(res.text, "html.parser")
+        
+        # 맵 선택 옵션 찾기
+        map_options = soup.find_all("option", {"data-title": True})
+        
+        maps = []
+        for option in map_options:
+            # value가 있고 data-title이 있는 맵 옵션만 추출
+            map_value = option.get("value")
+            map_title = option.get("data-title")
+            
+            if map_value and map_title:
+                # 맵 선택 드롭다운의 옵션들만 (게임모드나 다른 드롭다운 제외)
+                # parent select 태그 확인하여 맵 관련인지 체크
+                parent = option.find_parent("select")
+                if parent and "map" in parent.get("name", "").lower():
+                    maps.append({
+                        "value": map_value,
+                        "title": map_title
+                    })
+        
+        # 간단한 방법: value 속성으로 맵 관련 옵션인지 판단
+        # (맵은 보통 하이픈으로 연결된 문자열)
+        if not maps:
+            # parent 체크가 안되면 value 패턴으로 필터링
+            maps = [
+                {"value": opt.get("value"), "title": opt.get("data-title")}
+                for opt in map_options
+                if opt.get("value") and "-" in opt.get("value", "")
+            ]
+        
+        map_values = [m["value"] for m in maps]
+        print(f"✅ {len(map_values)}개 맵 파싱 완료")
+        
+        # 맵 정보 저장
+        maps_data = {
+            "last_updated": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "maps": maps,
+            "map_values": map_values
+        }
+        
+        maps_file = "maps.json"
+        with open(maps_file, "w", encoding="utf-8") as f:
+            json.dump(maps_data, f, ensure_ascii=False, indent=2)
+        print(f"💾 맵 정보 저장: {maps_file}")
+        
+        return map_values
+        
+    except Exception as e:
+        print(f"⚠️ 맵 파싱 실패: {e}")
+        print("기본 맵 목록 사용")
+        return None
+
+def load_maps():
+    """
+    저장된 맵 목록을 로드하거나, 없으면 웹에서 파싱
+    """
+    maps_file = "maps.json"
+    
+    # 저장된 맵 파일이 있는지 확인
+    if os.path.exists(maps_file):
+        try:
+            with open(maps_file, "r", encoding="utf-8") as f:
+                maps_data = json.load(f)
+            print(f"📂 저장된 맵 목록 로드: {len(maps_data['map_values'])}개")
+            return maps_data["map_values"]
+        except Exception as e:
+            print(f"⚠️ 맵 파일 로드 실패: {e}")
+    
+    # 저장된 파일이 없거나 로드 실패 시 웹에서 파싱
+    maps = fetch_maps_from_web()
+    
+    if maps:
+        return maps
+    
+    # 파싱도 실패한 경우 기본 맵 목록 반환
+    print("⚠️ 기본 하드코딩된 맵 목록 사용")
+    return [
+        "all-maps", "volskaya-industries", "temple-of-anubis", "hanamura", 
+        "throne-of-anubis", "hanaoka", "antarctic-peninsula", "nepal", "lijiang-tower", 
+        "busan", "samoa", "oasis", "ilios", "route-66", "watchpoint-gibraltar", "dorado", 
+        "rialto", "shambali-monastery", "circuit-royal", "junkertown", "havana", "new-junk-city", 
+        "suravasa", "aatlis", "numbani", "midtown", "blizzard-world", "eichenwalde", 
+        "kings-row", "paraiso", "hollywood", "new-queen-street", "runasapi", "esperanca", "colosseo"
+    ]
+
 def scrape_single_url(args):
     region, input_gamemode, map_name, tier, date_str = args
     
@@ -127,14 +224,8 @@ def main():
     gamemodes = [0, 2] # 0:quickplay, 2:competitive (실패시 1로 자동 폴백)
     regions = ["Americas", "Europe", "Asia"]
     
-    maps = [
-        "all-maps", "volskaya-industries", "temple-of-anubis", "hanamura", 
-        "throne-of-anubis", "hanaoka", "antarctic-peninsula", "nepal", "lijiang-tower", 
-        "busan", "samoa", "oasis", "ilios", "route-66", "watchpoint-gibraltar", "dorado", 
-        "rialto", "shambali-monastery", "circuit-royal", "junkertown", "havana", "new-junk-city", 
-        "suravasa", "aatlis", "numbani", "midtown", "blizzard-world", "eichenwalde", 
-        "kings-row", "paraiso", "hollywood", "new-queen-street", "runasapi", "esperanca", "colosseo"
-    ]
+    # 웹사이트에서 맵 목록 로드 (또는 저장된 파일에서)
+    maps = load_maps()
     
     tiers = ["All", "Bronze", "Silver", "Gold", "Platinum", "Diamond", "Master", "Grandmaster"]
 
