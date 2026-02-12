@@ -1,0 +1,72 @@
+{
+  "last_updated": "2026-02-12 20:08:16",
+  "maps": [
+    {
+      "value": "all-maps",
+      "title": "all_maps"
+    },
+    {
+      "value": "volskaya-industries",
+      "title": "볼스카야 인더스트리"
+    },
+    {
+      "value": "temple-of-anubis",
+      "title": "아누비스 신전"
+    },
+    {
+      "value": "throne-of-anubis",
+      "title": "아누비스의 왕좌"
+    },
+    {
+      "value": "lijiang-tower",
+      "title": "리장 타워"
+    },
+    {
+      "value": "route-66",
+      "title": "66번 국도"
+    },
+    {
+      "value": "watchpoint-gibraltar",
+      "title": "감시 기지: 지브롤터"
+    },
+    {
+      "value": "shambali-monastery",
+      "title": "샴발리 수도원"
+    },
+    {
+      "value": "circuit-royal",
+      "title": "서킷 로얄"
+    },
+    {
+      "value": "new-junk-city",
+      "title": "뉴 정크 시티"
+    },
+    {
+      "value": "blizzard-world",
+      "title": "블리자드 월드"
+    },
+    {
+      "value": "kings-row",
+      "title": "왕의 길"
+    },
+    {
+      "value": "new-queen-street",
+      "title": "뉴 퀸 스트리트"
+    }
+  ],
+  "map_values": [
+    "all-maps",
+    "volskaya-industries",
+    "temple-of-anubis",
+    "throne-of-anubis",
+    "lijiang-tower",
+    "route-66",
+    "watchpoint-gibraltar",
+    "shambali-monastery",
+    "circuit-royal",
+    "new-junk-city",
+    "blizzard-world",
+    "kings-row",
+    "new-queen-street"
+  ]
+}
