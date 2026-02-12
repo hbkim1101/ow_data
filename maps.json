@@ -1,5 +1,5 @@
 {
-  "last_updated": "2026-02-12 20:08:16",
+  "last_updated": "2026-02-12 21:56:23",
   "maps": [
     {
       "value": "all-maps",
@@ -14,12 +14,40 @@
       "title": "아누비스 신전"
     },
     {
+      "value": "hanamura",
+      "title": "하나무라"
+    },
+    {
       "value": "throne-of-anubis",
       "title": "아누비스의 왕좌"
     },
     {
+      "value": "hanaoka",
+      "title": "하나오카"
+    },
+    {
+      "value": "nepal",
+      "title": "네팔"
+    },
+    {
       "value": "lijiang-tower",
       "title": "리장 타워"
+    },
+    {
+      "value": "busan",
+      "title": "부산"
+    },
+    {
+      "value": "samoa",
+      "title": "사모아"
+    },
+    {
+      "value": "oasis",
+      "title": "오아시스"
+    },
+    {
+      "value": "ilios",
+      "title": "일리오스"
     },
     {
       "value": "route-66",
@@ -30,6 +58,14 @@
       "title": "감시 기지: 지브롤터"
     },
     {
+      "value": "dorado",
+      "title": "도라도"
+    },
+    {
+      "value": "rialto",
+      "title": "리알토"
+    },
+    {
       "value": "shambali-monastery",
       "title": "샴발리 수도원"
     },
@@ -38,35 +74,104 @@
       "title": "서킷 로얄"
     },
     {
+      "value": "junkertown",
+      "title": "쓰레기촌"
+    },
+    {
+      "value": "havana",
+      "title": "하바나"
+    },
+    {
       "value": "new-junk-city",
       "title": "뉴 정크 시티"
+    },
+    {
+      "value": "suravasa",
+      "title": "수라바사"
+    },
+    {
+      "value": "aatlis",
+      "title": "아틀리스"
+    },
+    {
+      "value": "numbani",
+      "title": "눔바니"
+    },
+    {
+      "value": "midtown",
+      "title": "미드타운"
     },
     {
       "value": "blizzard-world",
       "title": "블리자드 월드"
     },
     {
+      "value": "eichenwalde",
+      "title": "아이헨발데"
+    },
+    {
       "value": "kings-row",
       "title": "왕의 길"
     },
     {
+      "value": "paraiso",
+      "title": "파라이수"
+    },
+    {
+      "value": "hollywood",
+      "title": "할리우드"
+    },
+    {
       "value": "new-queen-street",
       "title": "뉴 퀸 스트리트"
+    },
+    {
+      "value": "runasapi",
+      "title": "루나사피"
+    },
+    {
+      "value": "esperanca",
+      "title": "이스페란사"
+    },
+    {
+      "value": "colosseo",
+      "title": "콜로세오"
     }
   ],
   "map_values": [
     "all-maps",
     "volskaya-industries",
     "temple-of-anubis",
+    "hanamura",
     "throne-of-anubis",
+    "hanaoka",
+    "nepal",
     "lijiang-tower",
+    "busan",
+    "samoa",
+    "oasis",
+    "ilios",
     "route-66",
     "watchpoint-gibraltar",
+    "dorado",
+    "rialto",
     "shambali-monastery",
     "circuit-royal",
+    "junkertown",
+    "havana",
     "new-junk-city",
+    "suravasa",
+    "aatlis",
+    "numbani",
+    "midtown",
     "blizzard-world",
+    "eichenwalde",
     "kings-row",
-    "new-queen-street"
+    "paraiso",
+    "hollywood",
+    "new-queen-street",
+    "runasapi",
+    "esperanca",
+    "colosseo"
   ]
 }
