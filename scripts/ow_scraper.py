@@ -12,6 +12,16 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 # ===== 설정값 =====
 MAX_WORKERS = 5  # 동시 요청 수
 TIMEOUT_SEC = 30 
+MIN_EXPECTED_MAPS = 30
+
+DEFAULT_MAPS = [
+    "all-maps", "volskaya-industries", "temple-of-anubis", "hanamura",
+    "throne-of-anubis", "hanaoka", "antarctic-peninsula", "nepal", "lijiang-tower",
+    "busan", "samoa", "oasis", "ilios", "route-66", "watchpoint-gibraltar", "dorado",
+    "rialto", "shambali-monastery", "circuit-royal", "junkertown", "havana", "new-junk-city",
+    "suravasa", "aatlis", "numbani", "midtown", "blizzard-world", "eichenwalde",
+    "kings-row", "paraiso", "hollywood", "new-queen-street", "runasapi", "esperanca", "colosseo"
+]
 
 # ===== 맵 목록 파싱 =====
 def fetch_maps_from_web():
@@ -27,7 +37,14 @@ def fetch_maps_from_web():
         soup = BeautifulSoup(res.text, "html.parser")
         
         # 맵 선택 옵션 찾기
-        map_options = soup.find_all("option", {"data-title": True})
+        map_select = soup.find("select", {"id": "filter-map-select"})
+        if not map_select:
+            map_select = soup.find("select", {"name": "filter-map-select"})
+
+        if map_select:
+            map_options = map_select.find_all("option", {"data-title": True})
+        else:
+            map_options = soup.find_all("option", {"data-title": True})
         
         maps = []
         for option in map_options:
@@ -39,7 +56,7 @@ def fetch_maps_from_web():
                 # 맵 선택 드롭다운의 옵션들만 (게임모드나 다른 드롭다운 제외)
                 # parent select 태그 확인하여 맵 관련인지 체크
                 parent = option.find_parent("select")
-                if parent and "map" in parent.get("name", "").lower():
+                if not parent or "map" in (parent.get("name", "") + parent.get("id", "")).lower():
                     maps.append({
                         "value": map_value,
                         "title": map_title
@@ -65,7 +82,7 @@ def fetch_maps_from_web():
             "map_values": map_values
         }
         
-        maps_file = "maps.json"
+        maps_file = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "maps.json")
         with open(maps_file, "w", encoding="utf-8") as f:
             json.dump(maps_data, f, ensure_ascii=False, indent=2)
         print(f"💾 맵 정보 저장: {maps_file}")
@@ -81,34 +98,35 @@ def load_maps():
     """
     저장된 맵 목록을 로드하거나, 없으면 웹에서 파싱
     """
-    maps_file = "maps.json"
+    maps_file = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "maps.json")
     
     # 저장된 맵 파일이 있는지 확인
     if os.path.exists(maps_file):
         try:
             with open(maps_file, "r", encoding="utf-8") as f:
                 maps_data = json.load(f)
-            print(f"📂 저장된 맵 목록 로드: {len(maps_data['map_values'])}개")
-            return maps_data["map_values"]
+            map_values = maps_data.get("map_values", [])
+            print(f"📂 저장된 맵 목록 로드: {len(map_values)}개")
+            if len(map_values) >= MIN_EXPECTED_MAPS:
+                return map_values
+            print("⚠️ 저장된 맵 목록이 충분하지 않아 재파싱 시도")
         except Exception as e:
             print(f"⚠️ 맵 파일 로드 실패: {e}")
     
     # 저장된 파일이 없거나 로드 실패 시 웹에서 파싱
     maps = fetch_maps_from_web()
     
+    if maps and len(maps) >= MIN_EXPECTED_MAPS:
+        return maps
     if maps:
+        missing = [m for m in DEFAULT_MAPS if m not in maps]
+        if missing:
+            maps = maps + missing
         return maps
     
     # 파싱도 실패한 경우 기본 맵 목록 반환
     print("⚠️ 기본 하드코딩된 맵 목록 사용")
-    return [
-        "all-maps", "volskaya-industries", "temple-of-anubis", "hanamura", 
-        "throne-of-anubis", "hanaoka", "antarctic-peninsula", "nepal", "lijiang-tower", 
-        "busan", "samoa", "oasis", "ilios", "route-66", "watchpoint-gibraltar", "dorado", 
-        "rialto", "shambali-monastery", "circuit-royal", "junkertown", "havana", "new-junk-city", 
-        "suravasa", "aatlis", "numbani", "midtown", "blizzard-world", "eichenwalde", 
-        "kings-row", "paraiso", "hollywood", "new-queen-street", "runasapi", "esperanca", "colosseo"
-    ]
+    return DEFAULT_MAPS
 
 def scrape_single_url(args):
     region, input_gamemode, map_name, tier, date_str = args
