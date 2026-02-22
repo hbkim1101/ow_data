@@ -13,6 +13,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 MAX_WORKERS = 5  # 동시 요청 수
 TIMEOUT_SEC = 30 
 MIN_EXPECTED_MAPS = 30
+POST_RETRY_ROUNDS = 5
 
 DEFAULT_MAPS = [
     "all-maps", "volskaya-industries", "temple-of-anubis", "hanamura",
@@ -223,6 +224,49 @@ def scrape_single_url(args):
 
     return []
 
+def task_to_mode_str(task):
+    _, gamemode, _, _, _ = task
+    return "competitive" if gamemode == 2 else "quickplay"
+
+def build_expected_heroes_by_mode(task_results):
+    expected = {"quickplay": set(), "competitive": set()}
+
+    # 우선순위 1: all-maps + All 조합에서 영웅 풀 추출
+    for task, records in task_results.items():
+        _, _, map_name, tier, _ = task
+        if map_name != "all-maps" or tier != "All":
+            continue
+
+        mode_str = task_to_mode_str(task)
+        heroes = {r.get("hero", "") for r in records if r.get("hero")}
+        expected[mode_str].update(heroes)
+
+    # 우선순위 2: 위 값이 비어있으면 해당 모드 전체에서 최대한 수집
+    for task, records in task_results.items():
+        mode_str = task_to_mode_str(task)
+        if expected[mode_str]:
+            continue
+        heroes = {r.get("hero", "") for r in records if r.get("hero")}
+        expected[mode_str].update(heroes)
+
+    return expected
+
+def find_retry_tasks(task_results, expected_heroes_by_mode):
+    retry_tasks = []
+
+    for task, records in task_results.items():
+        expected = expected_heroes_by_mode.get(task_to_mode_str(task), set())
+
+        # 기대 영웅셋이 아직 없으면 판별 불가 -> 일단 스킵
+        if not expected:
+            continue
+
+        actual = {r.get("hero", "") for r in records if r.get("hero")}
+        if len(actual) < len(expected):
+            retry_tasks.append(task)
+
+    return retry_tasks
+
 def main():
     # ===== 0. 기본 설정 =====
     date_str = datetime.now().strftime("%Y-%m-%d")
@@ -270,7 +314,7 @@ def main():
             
             tasks.append((region, gamemode, map_name, tier, date_str))
 
-        region_records = []
+        task_results = {t: [] for t in tasks}
         
         with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
             future_to_url = {executor.submit(scrape_single_url, t): t for t in tasks}
@@ -278,13 +322,57 @@ def main():
             for i, future in enumerate(as_completed(future_to_url)):
                 try:
                     data = future.result()
-                    if data:
-                        region_records.extend(data)
+                    task = future_to_url[future]
+                    task_results[task] = data if data else []
                 except Exception as exc:
                     print(f"Error: {exc}")
                 
                 if (i + 1) % 50 == 0:
                     print(f"    ... {i + 1}/{len(tasks)} 완료")
+
+        # ===== 2-1. 누락 영웅 후속 재시도 =====
+        expected_heroes_by_mode = build_expected_heroes_by_mode(task_results)
+        retry_tasks = find_retry_tasks(task_results, expected_heroes_by_mode)
+
+        if retry_tasks:
+            print(f"🔁 {region} 누락 의심 조합 {len(retry_tasks)}건 후속 재시도 시작")
+
+        for round_idx in range(1, POST_RETRY_ROUNDS + 1):
+            if not retry_tasks:
+                break
+
+            print(f"    ↳ 재시도 라운드 {round_idx}: {len(retry_tasks)}건")
+            improved_count = 0
+
+            with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
+                future_to_task = {executor.submit(scrape_single_url, t): t for t in retry_tasks}
+
+                for future in as_completed(future_to_task):
+                    task = future_to_task[future]
+                    try:
+                        new_data = future.result() or []
+                    except Exception:
+                        new_data = []
+
+                    old_data = task_results.get(task, [])
+                    old_heroes = {r.get("hero", "") for r in old_data if r.get("hero")}
+                    new_heroes = {r.get("hero", "") for r in new_data if r.get("hero")}
+
+                    if len(new_heroes) > len(old_heroes):
+                        task_results[task] = new_data
+                        improved_count += 1
+
+            expected_heroes_by_mode = build_expected_heroes_by_mode(task_results)
+            retry_tasks = find_retry_tasks(task_results, expected_heroes_by_mode)
+
+            if improved_count == 0:
+                print("    ↳ 추가 개선 없음, 재시도 종료")
+                break
+
+        region_records = []
+        for records in task_results.values():
+            if records:
+                region_records.extend(records)
 
         # ===== 3. 저장 및 정렬 (Sorting) =====
         if region_records:
