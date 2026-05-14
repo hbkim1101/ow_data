@@ -180,7 +180,8 @@ def scrape_single_url(args):
                         "hero": cells.get("name", ""),
                         "role": hero_meta.get("role", ""),
                         "pick_rate": cells.get("pickrate", ""),
-                        "win_rate": cells.get("winrate", "")
+                        "win_rate": cells.get("winrate", ""),
+                        "ban_rate": cells.get("banrate", "")
                     })
                 
                 time.sleep(0.1)
@@ -247,6 +248,12 @@ def find_retry_tasks(task_results, expected_heroes_by_mode):
         # 부분 누락(영웅 일부 누락)만 재시도 대상으로 분류
         if 0 < len(actual) < len(expected):
             retry_tasks.append(task)
+            continue
+
+        # 경쟁전 태스크에서 ban_rate가 전부 비어있으면 재시도
+        if task_to_mode_str(task) == "competitive" and records:
+            if all(not r.get("ban_rate", "") for r in records):
+                retry_tasks.append(task)
 
     return retry_tasks
 
