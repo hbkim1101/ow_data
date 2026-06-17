@@ -1,5 +1,5 @@
 {
-  "last_updated": "2026-06-16 21:01:48",
+  "last_updated": "2026-06-17 20:42:28",
   "maps": [
     {
       "value": "all-maps",
@@ -78,6 +78,10 @@
       "title": "아틀리스"
     },
     {
+      "value": "neon-junction",
+      "title": "네온 교차로"
+    },
+    {
       "value": "numbani",
       "title": "눔바니"
     },
@@ -142,6 +146,7 @@
     "new-junk-city",
     "suravasa",
     "aatlis",
+    "neon-junction",
     "numbani",
     "midtown",
     "blizzard-world",
