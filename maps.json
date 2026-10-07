@@ -1,5 +1,5 @@
 {
-  "last_updated": "2026-10-06 20:06:45",
+  "last_updated": "2026-10-07 20:06:51",
   "maps": [
     {
       "value": "all-maps",
@@ -40,6 +40,10 @@
     {
       "value": "watchpoint-gibraltar",
       "title": "감시 기지: 지브롤터"
+    },
+    {
+      "value": "grimsvotn",
+      "title": "그림스뵈튼"
     },
     {
       "value": "dorado",
@@ -137,6 +141,7 @@
     "ilios",
     "route-66",
     "watchpoint-gibraltar",
+    "grimsvotn",
     "dorado",
     "rialto",
     "shambali-monastery",
